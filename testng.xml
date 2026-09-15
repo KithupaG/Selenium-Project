@@ -1,0 +1,7 @@
+<suite name="DemoBlazeSuite" verbose="1">
+    <test name="DemoBlazeWebStoreTests">
+        <classes>
+            <class name="tests.DemoBlazeTests"/>
+        </classes>
+    </test>
+</suite>
