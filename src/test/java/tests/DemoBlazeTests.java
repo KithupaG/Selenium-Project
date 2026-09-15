@@ -1,5 +1,5 @@
 package tests;
 
-public class DemoBlazeTests {
+public class DemoBlazeTests extends BaseTest {
 
 }
