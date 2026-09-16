@@ -1,12 +1,11 @@
 package tests;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.junit.jupiter.api.Test;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class DemoBlazeTests extends BaseTest {
     private static final By CART_ROWS = By.xpath("//tbody[@id='tbodyid']/tr");
@@ -98,10 +97,11 @@ public class DemoBlazeTests extends BaseTest {
         openCart();
         wait.until(ExpectedConditions.numberOfElementsToBe(CART_ROWS, 1));
 
-        wait.until(ExpectedConditions.elementToBeClickable(By.id("orderModalBtn"))).click();
+        wait.until(ExpectedConditions.elementToBeClickable(
+                By.xpath("//button[text()='Place Order']"))).click();
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("orderModal")));
 
-        driver.findElement(By.xpath("/button[text()='Purchase']")).click();
+        driver.findElement(By.xpath("//button[text()='Purchase']")).click();
         wait.until(ExpectedConditions.alertIsPresent());
         Alert invalidAlert = driver.switchTo().alert();
         String invalidMessage = invalidAlert.getText();
@@ -118,7 +118,7 @@ public class DemoBlazeTests extends BaseTest {
         driver.findElement(By.id("month")).sendKeys(CHECKOUT_MONTH);
         driver.findElement(By.id("year")).sendKeys(CHECKOUT_YEAR);
 
-        driver.findElement(By.xpath("//button[text()='Purchase")).click();
+        driver.findElement(By.xpath("//button[text()='Purchase']")).click();
 
         WebElement confirmation = wait.until(
                 ExpectedConditions.visibilityOfElementLocated(By.className("sweet-alert")));
@@ -126,6 +126,6 @@ public class DemoBlazeTests extends BaseTest {
                 System.out.println("TC05 - Purchase conrimation: " + confirmationText);
                 Assert.assertTrue(confirmationText.contains("Thank you for your purchase"), "Successful purchase should show a thank-you confirmatuon");
 
-                driver.findElement(By.xpath("button[text()='OK']")).click();
+                driver.findElement(By.xpath("//button[text()='OK']")).click();
     }
 }
