@@ -2,17 +2,36 @@ package tests;
 
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.List;
+
 public class DemoBlazeTests extends BaseTest {
     private static final By CART_ROWS = By.xpath("//tbody[@id='tbodyid']/tr");
 
-    // Opens phones category
+    // Clicks an element, re-locating it if the SPA re-renders it first
+    private void clickSafely(By locator) {
+        boolean clicked = false;
+        while (!clicked) {
+            try {
+                wait.until(ExpectedConditions.elementToBeClickable(locator));
+                driver.findElement(locator).click();
+                clicked = true;
+            } catch (StaleElementReferenceException e) {
+                // DOM was replaced by the page; retry with a fresh lookup
+            }
+        }
+    }
+
+    // Opens phones category (reloads the home page first, since product/cart
+    // pages do not contain the category sidebar)
     private void openPhonesCategory() {
-        wait.until(ExpectedConditions.elementToBeClickable(By.linkText("Phones"))).click();
+        driver.get(BASE_URL);
+        clickSafely(By.linkText("Phones"));
         wait.until(ExpectedConditions.presenceOfElementLocated(
                 By.xpath("//div[@id='tbodyid']//a[@class='hrefch']")
         ));
@@ -20,13 +39,13 @@ public class DemoBlazeTests extends BaseTest {
 
     // Opens a product's detail page by its visible link text on the product grid.
     private void openProduct(String productName) {
-        wait.until(ExpectedConditions.elementToBeClickable(By.linkText(productName))).click();
+        clickSafely(By.linkText(productName));
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("name")));
     }
 
     // Clicks "Add to cart" button
     private String addOpenProductToCart() {
-        wait.until(ExpectedConditions.elementToBeClickable(By.linkText("Add to cart"))).click();
+        clickSafely(By.linkText("Add to cart"));
         wait.until(ExpectedConditions.alertIsPresent());
         Alert alert = driver.switchTo().alert();
         String alertText = alert.getText();
@@ -44,7 +63,7 @@ public class DemoBlazeTests extends BaseTest {
 
     // Open cart page via the navbar
     private void openCart() {
-        wait.until(ExpectedConditions.elementToBeClickable(By.id("cartur"))).click();
+        clickSafely(By.id("cartur"));
         wait.until(ExpectedConditions.presenceOfElementLocated(By.id("tbodyid")));
     }
 
@@ -89,6 +108,39 @@ public class DemoBlazeTests extends BaseTest {
         System.out.println("TC03 - Add-to-cart alert text: " + alertText);
         Assert.assertTrue(alertText.toLowerCase().contains("product added"),
                 "Alert text should confirm the product was added");
+    }
+
+    @Test
+    public void cartManagement() {
+        addPhoneToCart(PRODUCT);
+        addPhoneToCart(PRODUCT_1);
+        openCart();
+        wait.until(ExpectedConditions.numberOfElementsToBe(CART_ROWS, 2));
+
+        List<WebElement> cartRows = driver.findElements(CART_ROWS);
+        System.out.println("TC04 - Cart item count: " + cartRows.size());
+        for (WebElement row : cartRows) {
+            String itemName = row.findElement(By.xpath("./td[2]")).getText();
+            String itemPrice = row.findElement(By.xpath("./td[3]")).getText();
+            System.out.println("TC04 - " + itemName + " - " + itemPrice);
+        }
+
+        clickSafely(By.xpath("//tbody[@id='tbodyid']/tr[td[2]='" + PRODUCT_1 + "']//a"));
+        wait.until(ExpectedConditions.numberOfElementsToBe(CART_ROWS, 1));
+
+        List<WebElement> remainingRows = driver.findElements(CART_ROWS);
+        Assert.assertEquals(remainingRows.size(), 1,
+                "Exactly one cart row should remain after removing Nokia lumia 1520");
+        String remainingText = remainingRows.get(0).getText();
+        System.out.println("TC04 - Remaining row: " + remainingText);
+        Assert.assertTrue(remainingText.contains(PRODUCT),
+                "Samsung galaxy s6 should remain in the cart");
+        Assert.assertFalse(remainingText.contains(PRODUCT_1),
+                "Nokia lumia 1520 should have been removed");
+
+        String total = driver.findElement(By.id("totalp")).getText();
+        System.out.println("TC04 - Cart total: " + total);
+        Assert.assertFalse(total.isEmpty(), "Cart total should not be empty");
     }
 
     @Test

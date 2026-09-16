@@ -1,0 +1,271 @@
+VIDEO SCRIPT — Selenium Test Automation for DemoBlaze (approx. 10 minutes)
+============================================================================
+
+--- INTRO (0:00 – 0:45) ---
+
+Hi everyone. In this video I'll walk you through the Selenium test automation
+project I built for [your module/course name]. The project automates end-to-end
+testing of the DemoBlaze online store — a practice site commonly used for
+learning web automation.
+
+I'll cover the project structure, the technology stack, how the base test class
+works, and then walk through each of the five test cases one by one. By the end
+you'll understand how the tests interact with the browser, wait for elements,
+handle alerts, work with collections of elements, and validate results.
+
+Let's get started.
+
+
+--- SLIDE / SCREENSHOT: Project Structure (0:45 – 1:45) ---
+
+The project is a standard Maven project. Here's the structure that matters:
+
+    SeleniumTestProject/
+    ├── pom.xml                — project dependencies and build config
+    ├── testng.xml             — TestNG suite definition
+    └── src/test/java/tests/
+        ├── BaseTest.java      — shared setup and teardown logic
+        └── DemoBlazeTests.java — the five automated test cases
+
+Looking at pom.xml, the key dependencies are:
+
+  • Selenium WebDriver 4.27 — this is the core library that lets us control
+    a real Chrome browser from Java code.
+
+  • TestNG 7.10.2 — our test framework. TestNG gives us annotations like
+    @Test, @BeforeMethod, and @AfterMethod to structure our tests, plus
+    assertion methods to verify results.
+
+  • Maven Surefire Plugin 3.5.2 — configured to read testng.xml so that
+    when we run "mvn test", it knows which test class and methods to execute.
+
+The testng.xml file simply points to the DemoBlazeTests class:
+
+    <suite name="DemoBlazeSuite">
+      <test name="DemoBlazeWebStoreTests">
+        <classes>
+          <class name="tests.DemoBlazeTests"/>
+        </classes>
+      </test>
+    </suite>
+
+
+--- SCREEN: BaseTest.java (1:45 – 3:30) ---
+
+Let's look at BaseTest.java first, because every test class extends it.
+
+The class declares two key objects:
+
+    protected WebDriver driver;
+    protected WebDriverWait wait;
+
+WebDriver is the main Selenium interface — it represents the browser session.
+WebDriverWait is a utility that lets us wait for specific conditions on the
+page before continuing.
+
+We also define several constants at the top:
+
+    BASE_URL    — the DemoBlaze homepage
+    PRODUCT     — "Samsung galaxy s6", the product we'll test with
+    PRODUCT_1   — "Nokia lumia 1520", used by the cart management test
+    CHECKOUT_*  — name, country, city, card number, month, year
+                — used to fill the checkout form
+
+Now the important parts — the @BeforeMethod and @AfterMethod annotations.
+
+@BeforeMethod runs before EVERY individual test. Inside setUp():
+
+    1. We create ChromeOptions and add "--remote-allow-origins=*".
+       This flag is required in newer Selenium versions so that the
+       Chrome DevTools Protocol communication works properly.
+
+    2. We create a new ChromeDriver, passing those options.
+       This launches a fresh Chrome browser window.
+
+    3. We maximise the window and create our WebDriverWait with a
+       10-second timeout.
+
+    4. We navigate to the DemoBlaze homepage.
+
+This means each test starts with a completely clean browser session —
+no leftover state from previous tests.
+
+@AfterMethod runs after every test, regardless of whether it passed or
+failed. The "alwaysRun = true" attribute guarantees this. Inside tearDown()
+we call driver.quit(), which closes the browser and ends the session.
+
+This pattern — fresh browser per test, guaranteed cleanup — is a best
+practice in test automation.
+
+
+--- SCREEN: DemoBlazeTests.java — Helper Methods (3:30 – 5:15) ---
+
+Now let's move to DemoBlazeTests.java. This class extends BaseTest, so it
+inherits the driver and wait objects.
+
+Before the actual test cases, there are several private helper methods.
+These encapsulate common user actions so each test stays clean and readable.
+
+--- clickSafely(By locator) ---
+DemoBlaze is a single-page application, which means the product grid is
+re-rendered by JavaScript while you browse. This helper waits for the element
+to be clickable, attempts the click, and — if the page replaces the element
+between the lookup and the click, throwing a StaleElementReferenceException —
+simply retries with a fresh lookup. This keeps the tests robust against a
+common SPA problem.
+
+--- openPhonesCategory() ---
+First it navigates back to the home page, because the product detail and cart
+pages don't contain the category sidebar. Then it clicks the "Phones" category
+link using clickSafely, and waits for at least one phone product card to
+appear using presenceOfElementLocated.
+
+--- openProduct(productName) ---
+Takes a product name like "Samsung galaxy s6" and clicks the matching link
+text on the product grid. Then it waits for the product detail page to load
+by checking that the product name heading (with class "name") is visible.
+
+--- addOpenProductToCart() ---
+Assuming we're already on a product detail page, this clicks the "Add to
+cart" button. DemoBlaze shows a JavaScript alert saying "Product added"
+when you do this. The method:
+
+    1. Waits for the alert to appear
+    2. Reads the alert text
+    3. Accepts (clicks OK on) the alert
+    4. Returns the alert text back to the caller for assertion
+
+This is how we handle browser-native alerts in Selenium — by switching
+to the alert object with driver.switchTo().alert().
+
+--- addPhoneToCart(productName) ---
+A convenience method that chains the three steps together: open the Phones
+category, open the product, add it to cart. Used by the cart and checkout
+tests.
+
+--- openCart() ---
+Clicks the Cart link in the navbar (identified by id "cartur") and waits
+for the cart table body to load.
+
+These helper methods are an example of the Page Object Model pattern in
+a simplified form — we extract page interactions into reusable methods
+rather than repeating them in every test.
+
+
+--- SCREEN: Test Case 1 — homePageSmokeTest (5:15 – 6:00) ---
+
+Now the five test cases, marked with @Test.
+
+Test 1 — homePageSmokeTest
+
+This is a basic smoke test that verifies the homepage loaded correctly.
+
+    1. It checks that the page title is not null and not empty.
+    2. It waits for the store heading (id "nava") to be visible.
+    3. It asserts the heading is displayed and reads "PRODUCT STORE".
+
+This test would catch issues like the page failing to load, the site being
+down, or a broken homepage layout.
+
+
+--- SCREEN: Test Case 2 — productSelection (6:00 – 6:50) ---
+
+Test 2 — productSelection
+
+This test verifies that navigating to a product shows the correct details.
+
+    1. Opens the Phones category.
+    2. Opens the "Samsung galaxy s6" product.
+    3. Waits for the product name heading and asserts it matches
+       "Samsung galaxy s6".
+    4. Reads the price element and asserts it's not empty.
+
+This confirms the product detail page renders correctly and contains
+meaningful data. When we ran it, the price printed as "$360 *includes tax".
+
+
+--- SCREEN: Test Case 3 — addToCart (6:50 – 7:40) ---
+
+Test 3 — addToCart
+
+This test validates the add-to-cart flow.
+
+    1. Opens the Phones category and the product.
+    2. Clicks "Add to cart".
+    3. Captures the alert text that appears.
+    4. Asserts the alert contains "product added" (case-insensitive).
+
+When we ran it, the printed alert text was exactly "Product added".
+
+
+--- SCREEN: Test Case 4 — cartManagement (7:40 – 8:30) ---
+
+Test 4 — cartManagement
+
+This test covers the full shopping-cart workflow and demonstrates handling
+collections of elements with findElements() and a loop.
+
+    1. Adds "Samsung galaxy s6" to the cart.
+    2. Adds "Nokia lumia 1520" to the cart.
+    3. Opens the cart page and waits for exactly two rows.
+    4. Uses findElements() to fetch all cart rows into a List<WebElement>.
+    5. Loops over the list, reading and printing each product name from
+       the second column and price from the third column. Our run printed:
+       "Samsung galaxy s6 - 360" and "Nokia lumia 1520 - 820".
+    6. Finds and clicks the delete link for "Nokia lumia 1520" using a
+       row-anchored XPath.
+    7. Waits for the row count to drop to one, then asserts exactly one row
+       remains, that "Samsung galaxy s6" is still present, and that "Nokia
+       lumia 1520" has been removed.
+    8. Reads the cart total from the "totalp" element and asserts it's
+       not empty. Our run printed a total of 360.
+
+This test demonstrates findElements(), iterating with a loop, and verifying
+cart contents after a removal — all key requirements of the assignment.
+
+
+--- SCREEN: Test Case 5 — checkoutValidation (8:30 – 9:45) ---
+
+Test 5 — checkoutValidation
+
+This is the most comprehensive test. It walks through the entire purchase
+flow and validates two scenarios: an empty form submission and a valid one.
+
+Step 1 — Add a phone to the cart using the helper method.
+
+Step 2 — Open the cart and wait for exactly one row to appear in the
+table (confirming our product is there).
+
+Step 3 — Click the "Place Order" button to open the checkout modal.
+
+Step 4 — Without filling any fields, click "Purchase". The site should
+show a JavaScript alert saying "Please fill out Name and Creditcard."
+We assert that this validation message appears and accept the alert.
+
+Step 5 — Now fill in all the fields: name, country, city, card number,
+month, and year using sendKeys().
+
+Step 6 — Click "Purchase" again. This time the site should show a
+success confirmation using a SweetAlert popup.
+
+Step 7 — We wait for the SweetAlert element (class "sweet-alert") to
+become visible and assert it contains "Thank you for your purchase".
+
+Step 8 — Click "OK" to dismiss the confirmation.
+
+This test covers form validation, form submission, and success
+confirmation — a complete purchase user journey.
+
+
+--- SCREEN: Running the Tests (9:45 – 10:00) ---
+
+To run all tests we simply execute:
+
+    mvn test
+
+Maven compiles the code, Surefire picks up the testng.xml, and TestNG
+runs each test method in sequence. You'll see Chrome open and close
+five times — once per test — with all results printed in the console.
+In our final run, all five tests passed with zero failures.
+
+That covers the entire project. Thank you for watching.

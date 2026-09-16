@@ -37,3 +37,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Assignment materials (institutional PDFs, generated docs) ###
+*.pdf

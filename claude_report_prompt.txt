@@ -1,0 +1,106 @@
+You are an expert technical writer. Generate a complete, submission-ready Microsoft Word document (.docx) that is the PROJECT REPORT for the Selenium Java automation assessment described below. The report must strictly follow the required section structure, be 6-10 pages when converted to PDF, and reference REAL, accurate details from the project supplied below.
+
+=== ASSESSMENT CONTEXT (from the official assessment guide) ===
+- Unit: Software Engineering II — Software Testing, Quality Assurance and Maintenance (Unit Code HF2W)
+- Component A: DemoBlaze Selenium Java Automation Project (30 marks)
+- Test site: https://www.demoblaze.com/
+- The site is a public demonstration store whose data may change; document assumptions and observed limitations.
+- Fictitious checkout data MUST be used (no real card/personal details).
+
+=== MANDATORY REPORT STRUCTURE (must appear in this order) ===
+- Cover Page: Project title ("DemoBlaze Web Store Automation — Selenium Java Test Project"), student name, student ID, batch, and unit name. Leave student name / ID / batch as "[Your Name]" / "[Your Student ID]" / "[Your Batch]" placeholders.
+- 1. Introduction — Purpose and scope of the automation project.
+- 2. Test Environment — Java, Maven, Selenium, TestNG, Chrome, and IDE versions.
+- 3. Test Scenarios — For each test case: test-case ID, objective, steps, data, and expected result. Present as clearly formatted tables.
+- 4. Project Design — Class structure, setup, cleanup, and reusable data.
+- 5. Locator Strategy — Important locators (XPath and non-XPath) and reasons for selection.
+- 6. Implementation — Explanation of waits, element actions, alert handling, lists/loops, and assertions.
+- 7. Test Execution — TestNG results and console output; include a field noting screenshots are attached where applicable.
+- 8. Issues and Limitations — Public-site changes, timing issues, and assumptions.
+- 9. Conclusion — Summary of achieved automation coverage.
+- Appendices — Selected source-code extracts and additional evidence.
+
+Style requirements for the .docx:
+- Professional engineering-report formatting: title page, styled headings (Heading 1/2), code in a monospace block style, data in clean tables.
+- Keep between 6 and 10 pages when rendered.
+- Do not invent test results that contradict the evidence given below. Each section must be traceable to the actual project.
+
+=== REAL PROJECT FACTS (use these — do not fabricate) ===
+GENERAL
+- Java 21 (build target/source 21), Maven build, packaged as a WAR via maven-war-plugin.
+- Dependencies: selenium-java 4.27.0, testng 7.10.2, jakarta.servlet-api 6.1.0 (provided), Jersey 4.0.0-M2, weld-se-core 6.0.3.Final.
+- Maven Surefire Plugin 3.5.2 configured with suiteXmlFiles pointing to testng.xml.
+- testng.xml declares suite "DemoBlazeSuite", test "DemoBlazeWebStoreTests", class tests.DemoBlazeTests.
+- Execution command: mvn test (Chrome opens/closes once per test).
+
+CLASS STRUCTURE
+- tests.BaseTest — shared setup/cleanup base class.
+- tests.DemoBlazeTests — extends BaseTest, contains @Test methods and private helper methods.
+- Screenshots folder (screenshots/) used for selected execution evidence.
+
+BASE TEST DATA (class-level constants in BaseTest.java)
+- BASE_URL = https://www.demoblaze.com/
+- PRODUCT = "Samsung galaxy s6"; PRODUCT_1 = "Nokia lumia 1520"
+- CHECKOUT_NAME = "Test Student"; CHECKOUT_COUNTRY = "Sri Lanka"; CHECKOUT_CITY = "Colombo"
+- CHECKOUT_CARD = "4111111111111111" (fictitious, for testing only); CHECKOUT_MONTH = "12"; CHECKOUT_YEAR = "2027"
+- DEFAULT_TIMEOUT = 10 seconds for WebDriverWait
+
+SETUP / CLEANUP (BaseTest.java)
+- @BeforeMethod setUp(): creates ChromeOptions with --remote-allow-origins=* (required by newer Selenium for DevTools communication), launches a new ChromeDriver, maximises the window, creates new WebDriverWait(driver, 10s), and navigates to the base URL. Each test therefore starts from a clean browser session.
+- @AfterMethod(alwaysRun = true): driver.quit() — guarantees the browser closes after every test, pass or fail.
+
+HELPER METHODS (DemoBlazeTests.java)
+- openPhonesCategory(): explicit wait until the "Phones" link is clickable, click, then wait for a product card (//div[@id='tbodyid']//a[@class='hrefch']) to appear.
+- openProduct(String name): waits for the product link-text to be clickable, clicks it, waits for the product name heading (.name) to be visible.
+- addOpenProductToCart(): clicks "Add to cart", waits for the JavaScript alert (alertIsPresent), reads its text, accepts it, and returns the text.
+- addPhoneToCart(name): combines openPhonesCategory + openProduct + addOpenProductToCart.
+- openCart(): clicks the Cart navbar link (By.id("cartur")), waits for #tbodyid.
+
+KEY LOCATORS
+- Link text: By.linkText("Phones"), By.linkText(productName), By.linkText("Add to cart")
+- XPath: //tbody[@id='tbodyid']/tr (cart rows), //div[@id='tbodyid']//a[@class='hrefch'] (product cards), //button[text()='Place Order'] (Place Order button), //button[text()='Purchase'] (Purchase button), //button[text()='OK'] (SweetAlert OK button)
+- By id: "nava" (store heading), "cartur" (Cart link), "orderModal" (checkout modal), "name", "country", "city", "card", "month", "year" (form fields)
+- By class: "name" (product heading), "price-container" (product price), "sweet-alert" (purchase confirmation)
+
+SYNCHRONIZATION
+- Explicit waits via WebDriverWait + ExpectedConditions only (elementToBeClickable, visibilityOfElementLocated, presenceOfElementLocated, alertIsPresent, numberOfElementsToBe).
+- No Thread.sleep() used.
+
+ALERT HANDLING
+- JavaScript "Product added" alert on add-to-cart: switched to via driver.switchTo().alert(), text captured/printed, then accepted.
+- JavaScript "Please fill out Name and Creditcard." alert on invalid checkout: captured, asserted, accepted.
+
+TEST CASES AND EVIDENCE (run results)
+- TC01 homePageSmokeTest — PASS
+  Steps: verify non-empty page title; wait for #nava heading; assert visible and text equals "PRODUCT STORE".
+  Expected: title non-empty, heading displayed and reads "PRODUCT STORE".
+- TC02 productSelection — PASS
+  Steps: open Phones; open "Samsung galaxy s6"; assert heading text equals product name; read price-container and assert non-empty.
+  Actual printed price: "$360 *includes tax".
+  Expected: heading matches selected product and price is retrieved.
+- TC03 addToCart — PASS
+  Steps: open Phones; open product; click "Add to cart"; wait for alert; print alert text; assert it contains "product added".
+  Actual printed alert: "Product added".
+- TC04 cartManagement — (implemented in THIS project as required; describe as below)
+  Steps: add "Samsung galaxy s6"; add "Nokia lumia 1520"; open cart; assert exactly 2 cart rows via findElements(); print row count and each row's product name/price in a loop; find and remove "Nokia lumia 1520"; wait for number of rows to become 1; assert "Samsung galaxy s6" remains; print the cart total.
+  Expected: 2 rows initially, 1 row after removal, Samsung remains, total printed.
+- TC05 checkoutValidation — PASS
+  Steps: add Samsung galaxy s6 to cart; open cart; click "Place Order"; click "Purchase" with empty form; wait for alert; assert it contains "please fill out"; accept; fill name/country/city/card/month/year; click "Purchase" again; wait for .sweet-alert; assert contains "Thank you for your purchase"; click OK.
+  Actual printed invalid alert: "Please fill out Name and Creditcard."
+  Actual printed confirmation included: "Thank you for your purchase!" plus order id, amount "360 USD", card number, name, date "16/8/2026".
+  Expected: invalid submission shows missing-fields alert; valid submission shows thank-you confirmation.
+
+TESTNG EXECUTION RESULT (final successful run)
+- Tests run: 4 (5 including TC04 cartManagement when run), Failures: 0, Errors: 0, Skipped: 0.
+- Each test opens its own Chrome session and closes it afterwards.
+
+ISSUES AND LIMITATIONS (document these honestly)
+1. The public DemoBlaze site changed the Place Order button; the old id "orderModalBtn" no longer exists, so the locator was changed to By.xpath("//button[text()='Place Order']").
+2. Some original XPath expressions were malformed (missing "//" prefix or an unclosed bracket) and were corrected to "//button[text()='Purchase']" and "//button[text()='OK']".
+3. ChromeDriver logs warnings that the CDP implementation for Chrome 152 is not bundled with Selenium 4.27.0; basic operations still work, but DevTools-limited features may be affected.
+4. DemoBlaze is a public demo site; product data, prices, and markup can change at any time, and tests should be re-validated periodically.
+5. Fictitious checkout data is used in line with the assessment rules; no real card details are used.
+6. The DevTools warning and site latency can make tests slower than ideal; explicit waits mitigate flakiness.
+
+=== OUTPUT FORMAT ===
+Produce a single .docx file named "SQA_Project_Report.docx" with all sections above, incorporating the real project facts, formatted professionally, 6-10 pages when converted to PDF. Include a brief "Table of Contents" after the cover page if page space allows. Assume Excel/PDF conversions are handled by the user; you only deliver the .docx.
